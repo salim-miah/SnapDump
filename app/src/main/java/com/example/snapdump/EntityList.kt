@@ -5,11 +5,14 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.snapdump.databinding.FragmentEntityListBinding
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
 
 /**
  * A simple [Fragment] subclass.
@@ -17,43 +20,50 @@ private const val ARG_PARAM2 = "param2"
  * create an instance of this fragment.
  */
 class EntityList : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
-    }
-
+    private lateinit var binding: FragmentEntityListBinding
+    private lateinit var apiService: ApiService
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_entity_list, container, false)
+        binding = FragmentEntityListBinding.inflate(inflater, container, false)
+        binding.recyclerView.layoutManager = LinearLayoutManager(context)
+
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://labs.anontech.info/cse489/t3/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        apiService = retrofit.create(ApiService::class.java)
+
+        fetchEntities()
+
+        return binding.root
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment EntityList.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            EntityList().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+    private fun fetchEntities() {
+        apiService.getEntities().enqueue(object : Callback<List<Entity>> {
+            override fun onResponse(call: Call<List<Entity>>, response: Response<List<Entity>>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { entities ->
+                        binding.recyclerView.adapter = EntityAdapter(entities) { entity ->
+                            // Handle item click
+                            // For example, navigate to the Entity form fragment for editing
+                            val fragment = EntityForm.newInstance(entity)
+                            activity?.supportFragmentManager?.beginTransaction()
+                                ?.replace(R.id.frame, fragment)
+                                ?.addToBackStack(null)
+                                ?.commit()
+                        }
+                    }
                 }
             }
+
+            override fun onFailure(call: Call<List<Entity>>, t: Throwable) {
+                // Handle failure
+            }
+        })
     }
 }
